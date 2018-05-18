@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">celestine</string>
+    <string name="app_name">Celestine</string>
+    <string name="accessibility_service_label">Celestine</string>
+    <string name="accessibility_service_description">Wechat agent for auto logging</string>
 </resources>

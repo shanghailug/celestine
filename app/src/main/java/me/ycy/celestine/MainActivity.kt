@@ -13,6 +13,10 @@ import org.opencv.android.OpenCVLoader
 import org.opencv.core.Rect
 import kotlin.math.absoluteValue
 
+object Shared {
+    var screenReader: ScreenReaderImpl? = null
+}
+
 class MainActivity : AppCompatActivity() {
     lateinit var _helper: MediaProjectionHelper
     lateinit var _screenReader: ScreenReaderImpl
@@ -32,19 +36,10 @@ class MainActivity : AppCompatActivity() {
         _screenReader = ScreenReaderImpl(Const.width(this), Const.height(this))
         _helper = MediaProjectionHelper(this, _screenReader.reader)
 
+        Shared.screenReader = _screenReader
         //_helper.stop()
 
         _helper.start()
-
-        val fullScreen = Rect(0, 0, _screenReader.width, _screenReader.height)
-
-        launch {
-            Log.i(Const.TAG, "waiting for frame change")
-            _screenReader.waitChange(1, listOf(fullScreen))
-            Log.i(Const.TAG, "frame changed, wait for stable")
-            _screenReader.waitStable(4, listOf(fullScreen))
-            Log.i(Const.TAG, "frame stable")
-        }
 
         Log.i(Const.TAG, "start")
     }
