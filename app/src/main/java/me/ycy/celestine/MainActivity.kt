@@ -13,15 +13,23 @@ import org.opencv.android.OpenCVLoader
 import org.opencv.core.Rect
 import kotlin.math.absoluteValue
 
-object Shared {
-    var screenReader: ScreenReaderImpl? = null
-}
-
 class MainActivity : AppCompatActivity() {
+    val TAG = Const.TAG + "/main"
+
     lateinit var _helper: MediaProjectionHelper
     lateinit var _screenReader: ScreenReaderImpl
 
     companion object {
+        var screenReader: ScreenReaderImpl? = null
+
+        suspend fun waitStable(n: Int, roiList: List<Rect>) {
+            screenReader?.waitStable(n, roiList)
+        }
+
+        suspend fun waitChange(n: Int, roiList: List<Rect>) {
+            screenReader?.waitChange(n, roiList)
+        }
+
         init {
             if (!OpenCVLoader.initDebug()) {
                 Log.e(Const.TAG, "OpenCV init fail!")
@@ -33,15 +41,18 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        _screenReader = ScreenReaderImpl(Const.width(this), Const.height(this))
-        _helper = MediaProjectionHelper(this, _screenReader.reader)
+        Log.i(TAG, "on create")
 
-        Shared.screenReader = _screenReader
-        //_helper.stop()
+        if (screenReader == null) {
+            Log.i(TAG, "screen reader is null, init")
+            _screenReader = ScreenReaderImpl(Const.width(this), Const.height(this))
+            _helper = MediaProjectionHelper(this, _screenReader.reader)
 
-        _helper.start()
+            screenReader = _screenReader
+            //_helper.stop()
 
-        Log.i(Const.TAG, "start")
+            _helper.start()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

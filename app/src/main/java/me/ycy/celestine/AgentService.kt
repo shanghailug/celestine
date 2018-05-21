@@ -6,15 +6,15 @@ import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import io.reactivex.Observable
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.yield
+import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
 import java.util.concurrent.TimeUnit
 
 class AgentService: AccessibilityService() {
     val TAG = Const.TAG + "/agent"
-    init {
+
+    companion object {
+        var agent: Job? = null
     }
 
     override fun onCreate() {
@@ -29,42 +29,31 @@ class AgentService: AccessibilityService() {
     override fun onDestroy() {
         //ses?.shutdown()
         Log.i(TAG, "on destroy")
+
+        agent?.cancel()
+        agent = null
     }
 
     override fun onServiceConnected() {
         Log.i(TAG, "on service connected")
 
-        // Hack
-        launch {
-            while (Shared.screenReader == null) {
-                delay(100)
-            }
+        if (agent == null) {
+            Log.i(TAG, "agent main is null, starting")
+            val agentMain = AgentMain(this)
 
-            launch {
-                while (true) {
-                    Log.i(TAG, "curr pkg is: " + rootInActiveWindow.packageName)
-                    delay(1000)
+            // Hack
+            agent = launch {
+                Log.i(TAG, "wait screen reader...")
+
+                while (MainActivity.screenReader == null) {
+                    delay(100)
                 }
+
+                Log.i(TAG, "run agent")
+                agentMain.run()
             }
-
-            val reader = Shared.screenReader!!
-
-            val fullScreen = Rect(0, 0, reader.width, reader.height)
-            Log.i(Const.TAG, "waiting for frame change")
-            reader.waitChange(1, listOf(fullScreen))
-            Log.i(Const.TAG, "frame changed, wait for stable")
-            reader.waitStable(4, listOf(fullScreen))
-            Log.i(Const.TAG, "frame stable")
         }
     }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // TODO
-
-
-        return Service.START_STICKY
-    }
-
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
         if (e != null && e.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
