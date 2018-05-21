@@ -7,10 +7,7 @@ import android.graphics.Path
 import android.support.v4.app.ShareCompat
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
-import kotlinx.coroutines.experimental.TimeoutCancellationException
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.withTimeout
+import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
 import android.graphics.Rect as ARect
 
@@ -28,7 +25,7 @@ class AgentMain(c: AccessibilityService) {
     val CLICK_STABLE_FRAME = 4
     val WAIT_TIMEOUT_NUMBER = 1000 // 1000 * POLL_DELAY = 10sec
 
-    val DURATION_CLICK = 150L
+    val DURATION_CLICK = 50L
     val DURATION_LONGCLICK = 800L
 
     val _c = c
@@ -43,6 +40,15 @@ class AgentMain(c: AccessibilityService) {
 
     val root: () -> AccessibilityNodeInfo? = {
         _c.rootInActiveWindow
+    }
+
+    fun performGesture(path: Path, t0: Long, duration: Long) {
+        val gd = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(
+                        path, t0, duration))
+                .build()
+
+        _c.dispatchGesture(gd, null, null)
     }
 
     suspend fun waitStable(n: Int, l: List<Rect>) = MainActivity.waitStable(n, l)
@@ -257,7 +263,8 @@ class AgentMain(c: AccessibilityService) {
     suspend fun click(
             duration: Long,
             x: Float, y: Float,
-            waitValid: suspend () -> Unit = {}, // with timeout
+            validTimeout: Long,
+            waitValid: suspend () -> Unit = {},
             waitStable: suspend () -> Unit = {}
     ) {
         Log.i(TAG, "click: " + Pair(x, y))
@@ -274,17 +281,19 @@ class AgentMain(c: AccessibilityService) {
             _c.dispatchGesture(gd, null, null)
         }
 
-        while (true) {
-            doClick()
-            try {
-                waitValid()
-                break
-            }
-            catch (e: TimeoutCancellationException) {
-                Log.w(TAG, "timeout, retry")
-                Log.w(TAG, e)
+        // should start waitValid first
+        // and run waitValid across whole click & retry click period
+        val a0 = async { waitValid() }
+        val a1 = async {
+            while (true) {
+                doClick()
+                delay(validTimeout)
+                Log.i(TAG, "timeout, retry")
             }
         }
+
+        a0.await()
+        a1.cancel()
 
         waitStable()
     }
@@ -292,25 +301,23 @@ class AgentMain(c: AccessibilityService) {
     suspend fun click(x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV) {
-        click(DURATION_CLICK, x, y,
-                { withTimeout<Unit>(300) {
-                    if (roiListV.isNotEmpty()) {
-                        Log.i(TAG, "wait change: " + roiListV)
-                        waitChange(CLICK_VALID_FRAME, roiListV)
-                    }
-                    else {
-                        Log.i(TAG, "skip change wait")
-                    }
-                }},
-                {
-                    if (roiListS.isNotEmpty()) {
-                        Log.i(TAG, "wait stable: " + roiListS)
-                        waitStable(CLICK_STABLE_FRAME, roiListS)
-                    }
-                    else {
-                        Log.i(TAG, "skip stable wait")
-                    }
-                })
+        click(DURATION_CLICK, x, y, 300, {
+            if (roiListV.isNotEmpty()) {
+                Log.i(TAG, "wait change: " + roiListV)
+                waitChange(CLICK_VALID_FRAME, roiListV)
+            }
+            else {
+                Log.i(TAG, "skip change wait")
+            }
+        }, {
+            if (roiListS.isNotEmpty()) {
+                Log.i(TAG, "wait stable: " + roiListS)
+                waitStable(CLICK_STABLE_FRAME, roiListS)
+            }
+            else {
+                Log.i(TAG, "skip stable wait")
+            }
+        })
     }
 
     suspend fun click(n: AccessibilityNodeInfo,
@@ -370,8 +377,6 @@ class AgentMain(c: AccessibilityService) {
         withNode(waitId(Const.Loc.Main.ID_CHAT_ENTRY), {
             click(it, listOf(Profile.R_HEADER))
         })
-
-        waitStable(HORI_WAIT_FRAME, listOf(Profile.R_HEADER))
 
         Log.i(TAG1, "chat page stable")
 
