@@ -7,8 +7,12 @@ import android.media.ImageReader
 import android.util.Log
 import io.reactivex.Observable
 import io.reactivex.rxkotlin.Observables
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.experimental.rx2.awaitLast
 import kotlinx.coroutines.experimental.rx2.rxObservable
+import kotlinx.coroutines.experimental.yield
 import org.opencv.android.Utils
 import org.opencv.core.Core
 import org.opencv.core.CvType
@@ -111,49 +115,41 @@ class ScreenReaderImpl(width: Int, height: Int): ScreenReader {
         finally { if (image != null) { image.close() } }
     }
 
-    fun test1(): Observable<Int> {
-        val o = rxObservable(block = {
-            for (i in 0..10) {
-                delay(10)
-                send(i)
-                delay(10)
-                send(-i)
-            }
-        })
-
-        return o.share()
-    }
-
-
     override suspend fun waitStable(n: Int, roiList: List<Rect>) {
-        observable.map {
-            val reader = it.second
-            val changed = reader.frameChanged(listOf(
-                    Rect(0, 0, reader.width, reader.height)
-            ))
-            //Log.i(Const.TAG, "wait stable0: " + it)
-            changed
-        }.buffer(
-                n,1
-        ).takeWhile {
-            //Log.i(Const.TAG, "wait stable1" + it)
-            it.any {it}
-        }.blockingSubscribe()
+        async {
+            observable.map {
+                val reader = it.second
+                val changed = reader.frameChanged(listOf(
+                        Rect(0, 0, reader.width, reader.height)
+                ))
+                //Log.i(Const.TAG, "wait stable0: " + it)
+                changed
+            }.buffer(
+                    n, 1
+            ).takeWhile {
+                //Log.i(Const.TAG, "wait stable1" + it)
+                it.any { it }
+            }.blockingSubscribe()
+        }.await()
     }
 
     override suspend fun waitChange(n: Int, roiList: List<Rect>) {
-        observable.map {
-            val reader = it.second
-            val changed = reader.frameChanged(listOf(
-                    Rect(0, 0, reader.width, reader.height)
-            ))
-            //Log.i(Const.TAG, "wait change0: " + it)
-            !changed
-        }.buffer(
-                n,1
-        ).takeWhile {
-            //Log.i(Const.TAG, "wait change1: " + it)
-            it.any {it}
-        }.blockingSubscribe()
+        // NOTE: use awaitLast() will cause `observable' variable
+        // crash due timeout excetpion
+        async {
+            observable.map {
+                val reader = it.second
+                val changed = reader.frameChanged(listOf(
+                        Rect(0, 0, reader.width, reader.height)
+                ))
+                //Log.i(Const.TAG, "wait change0: " + it)
+                !changed
+            }.buffer(
+                    n, 1
+            ).takeWhile {
+                //Log.i(Const.TAG, "wait change1: " + it)
+                it.any { it }
+            }.blockingSubscribe()
+        }.await()
     }
 }

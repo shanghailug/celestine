@@ -280,7 +280,7 @@ class AgentMain(c: AccessibilityService) {
                 waitValid()
                 break
             }
-            catch (e: Exception) {
+            catch (e: TimeoutCancellationException) {
                 Log.w(TAG, "timeout, retry")
                 Log.w(TAG, e)
             }
@@ -293,14 +293,24 @@ class AgentMain(c: AccessibilityService) {
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV) {
         click(DURATION_CLICK, x, y,
-                { withTimeout(300) {
-                    if (roiListV.size > 0) {
+                { withTimeout<Unit>(300) {
+                    if (roiListV.isNotEmpty()) {
+                        Log.i(TAG, "wait change: " + roiListV)
                         waitChange(CLICK_VALID_FRAME, roiListV)
                     }
+                    else {
+                        Log.i(TAG, "skip change wait")
+                    }
                 }},
-                { if (roiListS.size > 0) {
-                    waitStable(CLICK_STABLE_FRAME, roiListS)
-                } })
+                {
+                    if (roiListS.isNotEmpty()) {
+                        Log.i(TAG, "wait stable: " + roiListS)
+                        waitStable(CLICK_STABLE_FRAME, roiListS)
+                    }
+                    else {
+                        Log.i(TAG, "skip stable wait")
+                    }
+                })
     }
 
     suspend fun click(n: AccessibilityNodeInfo,

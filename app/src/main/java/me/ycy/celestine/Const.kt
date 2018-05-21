@@ -48,7 +48,7 @@ object Const {
 
         object Chat {
             // 上面的状态栏
-            val ID_HEADER = Loc.ID_HEADER
+            //val ID_HEADER = Loc.ID_HEADER
 
             // 聊天的主页面，但不是顶层控件，而是其中大小一样的，scrollable的一个子控件（ListView）
             // 顶层的是一个Layout
