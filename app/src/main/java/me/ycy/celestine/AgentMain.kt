@@ -122,7 +122,6 @@ class AgentMain(c: AccessibilityService) {
 
         while (true) {
             var hasBack = false
-
             val res = _c.rootInActiveWindow?.
                     findAccessibilityNodeInfosByText(CONTENT_BACK)
 
@@ -302,7 +301,7 @@ class AgentMain(c: AccessibilityService) {
     suspend fun click(x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV) {
-        click(DURATION_CLICK, x, y, 300, {
+        click(DURATION_CLICK, x, y, 800, {
             if (roiListV.isNotEmpty()) {
                 Log.i(TAG, "wait change: " + roiListV)
                 waitChange(CLICK_VALID_FRAME, roiListV)

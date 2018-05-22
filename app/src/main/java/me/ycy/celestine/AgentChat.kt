@@ -1,5 +1,7 @@
 package me.ycy.celestine
 
+import android.accessibilityservice.GestureDescription
+import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.experimental.delay
@@ -19,10 +21,29 @@ class AgentChat(m: AgentMain) {
         val nMain = _m.waitId(Const.Loc.Chat.ID_MAIN)
 
         val jobScroll = launch {
-            val interval = MainActivity.screenReader!!.frameInterval / 2
+            val N = 5
+            val dt = MainActivity.screenReader!!.frameInterval / N
             while (true) {
-                nMain.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
-                delay(interval)
+                var b = ARect()
+                // NOTE: always get new one
+                _m.withNode(_m.waitId(Const.Loc.Chat.ID_MAIN)) {
+                    it.getBoundsInScreen(b)
+                    //it.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                }
+
+                //delay(interval)
+
+                for (i in 1 .. (N - 1)) {
+                    // perform manual scroll, to avoid some corner case
+                    val path = Path()
+                    val x = b.left + b.width() * i / N
+                    path.moveTo(x.toFloat(), (b.top + b.height() * 1 / 3).toFloat())
+                    path.rLineTo(0f, b.height().toFloat() / 3f)
+
+                    _m.performGesture(path, 0, 10)
+
+                    delay(dt)
+                }
             }
         }
 
@@ -50,6 +71,6 @@ class AgentChat(m: AgentMain) {
         doScrollToBegin()
 
         Log.i(TAG, "done")
-        delay(60 * 1000 * 10)
+        //delay(60 * 1000 * 10)
     }
 }
