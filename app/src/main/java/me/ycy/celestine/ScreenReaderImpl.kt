@@ -119,9 +119,7 @@ class ScreenReaderImpl(width: Int, height: Int): ScreenReader {
         async {
             observable.map {
                 val reader = it.second
-                val changed = reader.frameChanged(listOf(
-                        Rect(0, 0, reader.width, reader.height)
-                ))
+                val changed = reader.frameChanged(roiList)
                 //Log.i(Const.TAG, "wait stable0: " + it)
                 changed
             }.buffer(
@@ -139,9 +137,7 @@ class ScreenReaderImpl(width: Int, height: Int): ScreenReader {
         async {
             observable.map {
                 val reader = it.second
-                val changed = reader.frameChanged(listOf(
-                        Rect(0, 0, reader.width, reader.height)
-                ))
+                val changed = reader.frameChanged(roiList)
                 //Log.i(Const.TAG, "wait change0: " + it)
                 !changed
             }.buffer(
