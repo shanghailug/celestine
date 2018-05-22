@@ -21,4 +21,6 @@ interface ScreenReader {
 
     suspend fun waitStable(n: Int, roiList: List<Rect>)
     suspend fun waitChange(n: Int, roiList: List<Rect>)
+
+    suspend fun waitNextFrame()
 }

@@ -30,6 +30,10 @@ class MainActivity : AppCompatActivity() {
             screenReader?.waitChange(n, roiList)
         }
 
+        suspend fun waitNextFrame() {
+            screenReader?.waitNextFrame()
+        }
+
         init {
             if (!OpenCVLoader.initDebug()) {
                 Log.e(Const.TAG, "OpenCV init fail!")

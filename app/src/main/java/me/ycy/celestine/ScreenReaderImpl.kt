@@ -148,4 +148,10 @@ class ScreenReaderImpl(width: Int, height: Int): ScreenReader {
             }.blockingSubscribe()
         }.await()
     }
+
+    override suspend fun waitNextFrame() {
+        async {
+            observable.blockingSingle()
+        }
+    }
 }

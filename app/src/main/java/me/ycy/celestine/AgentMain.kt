@@ -53,6 +53,7 @@ class AgentMain(c: AccessibilityService) {
 
     suspend fun waitStable(n: Int, l: List<Rect>) = MainActivity.waitStable(n, l)
     suspend fun waitChange(n: Int, l: List<Rect>) = MainActivity.waitChange(n, l)
+    suspend fun waitNextFrame() = MainActivity.waitNextFrame()
 
     suspend fun <R>withNode(node: AccessibilityNodeInfo,
                             func: suspend (AccessibilityNodeInfo) -> R): R {
