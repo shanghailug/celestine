@@ -395,7 +395,7 @@ class AgentMain(c: AccessibilityService) {
     }
 
 
-    suspend fun doProcEachChat(list: List<String>) {
+    suspend fun doProcChat(chat: String) {
         val nEntrys = waitIdList(Const.Loc.Main.ID_CHAT_ENTRY)
 
         for (n in nEntrys) {
@@ -403,7 +403,7 @@ class AgentMain(c: AccessibilityService) {
                 val text = it.text.toString()
                 Log.i(TAG, "chat entry:<" + text + ">")
 
-                if (list.contains(text)) {
+                if (text == chat) {
                     Log.i(TAG, "  --> matched")
                     click(n, listOf(Profile.R_HEADER))
 
@@ -419,10 +419,14 @@ class AgentMain(c: AccessibilityService) {
     suspend fun run() {
         val GROUP_LIST = listOf(
                 "SHLUG技术讨论群🚫💦",
+                "Yù Chāngyuǎn",
                 "SHLUG闲聊群"
         )
 
         doProfile()
-        doProcEachChat(GROUP_LIST)
+
+        for (chat in GROUP_LIST) {
+            doProcChat(chat)
+        }
     }
 }
