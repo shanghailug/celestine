@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
+import java.util.*
 import android.graphics.Rect as ARect
 
 // 说明
@@ -25,7 +26,7 @@ class AgentMain(c: AccessibilityService) {
     val HORI_WAIT_FRAME = 4
     val CLICK_VALID_FRAME = 2
     val CLICK_STABLE_FRAME = 4
-    val WAIT_TIMEOUT_NUMBER = 1000 // 1000 * POLL_DELAY = 10sec
+    val WAIT_TIMEOUT = (1000 * 10) // 1000 * POLL_DELAY = 10sec
 
     val DURATION_CLICK = 50L
     val DURATION_LONGCLICK = 800L
@@ -77,7 +78,7 @@ class AgentMain(c: AccessibilityService) {
     suspend fun waitActStr(str: String, idx: Int): AccessibilityNodeInfo {
         var res: AccessibilityNodeInfo? = null
         val N = 4
-        var n = 0
+        var t0 = Date().time
         val s = Profile.R_SCREEN
 
         while (true) {
@@ -108,8 +109,7 @@ class AgentMain(c: AccessibilityService) {
 
             if (res != null) break
 
-            n++
-            if (n > WAIT_TIMEOUT_NUMBER) {
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
                 throw RuntimeException("timeout wait action str: " + str + ", idx: " + idx)
             }
 
@@ -186,7 +186,7 @@ class AgentMain(c: AccessibilityService) {
                        node: () -> AccessibilityNodeInfo? = root
     ): AccessibilityNodeInfo {
         var res: AccessibilityNodeInfo? = null
-        var n = 0
+        val t0 = Date().time
 
         while (true) {
             var l = node()?.findAccessibilityNodeInfosByViewId(id)
@@ -199,8 +199,7 @@ class AgentMain(c: AccessibilityService) {
 
             if (res != null) break
 
-            n++
-            if (n > WAIT_TIMEOUT_NUMBER) {
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
                 // NOTE: sometime, node() will return NULL
                 Log.w(TAG, "get node() = " + node())
                 Log.w(TAG, "curr thread =" + Thread.currentThread())
@@ -216,13 +215,12 @@ class AgentMain(c: AccessibilityService) {
     suspend fun waitIdList(id: String,
                         node: () -> AccessibilityNodeInfo? = root
     ): List<AccessibilityNodeInfo> {
-        var n  = 0
+        val t0 = Date().time
         while (true) {
             var l = node()?.findAccessibilityNodeInfosByViewId(id)
             if (l != null) return l!!
 
-            n++
-            if (n > WAIT_TIMEOUT_NUMBER) {
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
                 throw RuntimeException("timeout when wait id list: " + id)
             }
 
@@ -233,13 +231,12 @@ class AgentMain(c: AccessibilityService) {
     suspend fun waitTextList(t: String,
                              node: () -> AccessibilityNodeInfo? = root
     ): List<AccessibilityNodeInfo> {
-        var n  = 0
+        val t0 = Date().time
         while (true) {
             var l = node()?.findAccessibilityNodeInfosByText(t)
             if (l != null) return l!!
 
-            n++
-            if (n > WAIT_TIMEOUT_NUMBER) {
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
                 throw RuntimeException("timeout when wait text list: " + t)
             }
 
@@ -249,7 +246,7 @@ class AgentMain(c: AccessibilityService) {
 
     suspend fun waitText(t: String): AccessibilityNodeInfo {
         var res: AccessibilityNodeInfo? = null
-        var n = 0
+        val t0 = Date().time
 
         while (true) {
             var l = _c.rootInActiveWindow?.findAccessibilityNodeInfosByText(t)
@@ -262,8 +259,7 @@ class AgentMain(c: AccessibilityService) {
 
             if (res != null) break
 
-            n++
-            if (n > WAIT_TIMEOUT_NUMBER) {
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
                 throw RuntimeException("timeout wait text: " + t)
             }
 
