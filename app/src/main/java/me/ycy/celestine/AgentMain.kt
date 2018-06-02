@@ -309,12 +309,15 @@ class AgentMain(c: AccessibilityService) {
 
     suspend fun click(duration: Long, x: Float, y: Float,
                       roiListV: List<Rect>,
-                      roiListS: List<Rect> = roiListV) {
+                      roiListS: List<Rect> = roiListV,
+                      timeout: Int = WAIT_TIMEOUT) {
         click(duration, x, y, 300, {
             if (roiListV.isNotEmpty()) {
                 Log.i(TAG, "wait change: " + roiListV)
                 // TODO: waitChange or waitID
-                waitChange(CLICK_VALID_FRAME, roiListV)
+                withTimeout(timeout) {
+                    async { waitChange(CLICK_VALID_FRAME, roiListV) }.await()
+                }
             }
             else {
                 Log.i(TAG, "skip change wait")
@@ -322,7 +325,9 @@ class AgentMain(c: AccessibilityService) {
         }, {
             if (roiListS.isNotEmpty()) {
                 Log.i(TAG, "wait stable: " + roiListS)
-                waitStable(CLICK_STABLE_FRAME, roiListS)
+                withTimeout(timeout) {
+                    async { waitStable(CLICK_STABLE_FRAME, roiListS) }.await()
+                }
             }
             else {
                 Log.i(TAG, "skip stable wait")
@@ -332,16 +337,18 @@ class AgentMain(c: AccessibilityService) {
 
     suspend fun click(x: Float, y: Float,
                       roiListV: List<Rect>,
-                      roiListS: List<Rect> = roiListV) {
-        click(DURATION_CLICK, x, y, roiListV, roiListS)
+                      roiListS: List<Rect> = roiListV,
+                      timeout: Int = WAIT_TIMEOUT) {
+        click(DURATION_CLICK, x, y, roiListV, roiListS, timeout)
     }
 
     suspend fun click(n: AccessibilityNodeInfo,
                       roiListV: List<Rect>,
-                      roiListS: List<Rect> = roiListV) {
+                      roiListS: List<Rect> = roiListV,
+                      timeout: Int = WAIT_TIMEOUT) {
         var b = ARect()
         n.getBoundsInScreen(b)
-        click(b.exactCenterX(), b.exactCenterY(), roiListV, roiListS)
+        click(b.exactCenterX(), b.exactCenterY(), roiListV, roiListS, timeout)
     }
 
 
