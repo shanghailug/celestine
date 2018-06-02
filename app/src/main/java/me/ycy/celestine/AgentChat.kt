@@ -120,12 +120,16 @@ class AgentChat(m: AgentMain) {
         Log.i(TAG, "prepare: " + row)
     }
 
-    suspend fun bubbleLongClick(n: AccessibilityNodeInfo) {
+    suspend fun bubbleLongClickForText(x: Float, y: Float, text: String) {
+        _m.click(_m.DURATION_LONGCLICK, x, y,
+                // wait text appear
+                2000, { _m.waitText(text) }, {})
+    }
+
+    suspend fun bubbleLongClickForText(n: AccessibilityNodeInfo, text: String) {
         var b = ARect()
         n.getBoundsInScreen(b)
-        _m.click(_m.DURATION_LONGCLICK, b.exactCenterX(), b.top.toFloat() + 5f,
-                listOf(), listOf(Rect(b.left, b.top, b.width(), b.height())))
-
+        bubbleLongClickForText(b.exactCenterX(), b.top.toFloat() + 5f, text)
     }
 
     suspend fun  bubleCopyText(n: AccessibilityNodeInfo): String {
@@ -133,7 +137,7 @@ class AgentChat(m: AgentMain) {
         Log.i(TAG, "clip: " + clipboard)
         clipboard.primaryClip = ClipData.newPlainText("empty", "")
 
-        bubbleLongClick(n)
+        bubbleLongClickForText(n, Const.Loc.Chat.STR_COPY)
 
         _m.withNode(_m.waitText(Const.Loc.Chat.STR_COPY), {
             it.performAction(AccessibilityNodeInfo.ACTION_CLICK)
@@ -265,7 +269,7 @@ class AgentChat(m: AgentMain) {
 
             val y = rect.y + rect.height * 3f / 4
 
-            _m.click(_m.DURATION_LONGCLICK, x, y, listOf(), listOf())
+            bubbleLongClickForText(x, y, Const.Loc.Chat.STR_DELETE)
         })
 
         _m.withNode(_m.waitText(Const.Loc.Chat.STR_DELETE)) {
