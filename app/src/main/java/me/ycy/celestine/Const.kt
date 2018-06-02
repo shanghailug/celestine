@@ -56,6 +56,37 @@ object Const {
 
             // 输入栏
             val ID_INPUT = App.Id("a_p")
+
+            // 包含对话的子容器，是ID_MAIN的子容器的子容器
+            val ID_ROW = App.Id("y")
+
+            // 头像，ImageView
+            val ID_AVATAR = App.Id("jx")
+
+            // 名称, TextView
+            val ID_FROM = App.Id("jy")
+
+            // 文本消息
+            val ID_C_TEXT = App.Id("jz")
+
+            // 链接, NOTE: has child with id ad7
+            val ID_C_LINK = App.Id("ad7")
+            val ID_C_LINK_SUM = App.Id("adn")
+            val ID_C_LINK_DESC = App.Id("adq")
+
+            // 表情, framelayout, with content-desc
+            val ID_C_STICKER = App.Id("aec")
+
+            // 图片
+            val ID_C_IMAGE = App.Id("ad8")
+            val ID_C_IMAGE_1 = App.Id("aec") // imageview
+
+            // 视频
+
+
+            // 相关字符串
+            val STR_COPY = "Copy"
+            val STR_DELETE = "Delete"
         }
     }
 }

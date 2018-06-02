@@ -2,9 +2,12 @@ package me.ycy.celestine
 
 import android.accessibilityservice.AccessibilityService
 import android.app.Service
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import io.reactivex.Observable
 import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
@@ -56,12 +59,26 @@ class AgentService: AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent?) {
-        if (e != null && e.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            Log.i(TAG, "notified: " + e.text)
+        // NOTE: sometimes, rootInActiveWindow will be null
+        // run rootInActiveWindow in event callback thread
+        // or other thread will no different
+        // and callback, e.source is also NULL
+
+        if (rootInActiveWindow == null) {
+            Log.w(TAG, "root is NULL")
         }
 
-        if ((e == null) || (e.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)) {
-            Log.v(TAG, "e~ ${e}")
+        if (e != null) {
+            var r: AccessibilityNodeInfo? = e.source
+
+            while (true) {
+                if (r?.parent == null) break
+                r = r?.parent
+            }
+
+            Log.v(TAG, "event ancestor: " + r)
         }
+
+        Log.v(TAG, "event: " + e)
     }
 }

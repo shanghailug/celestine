@@ -13,6 +13,7 @@ import kotlinx.coroutines.experimental.runBlocking
 import kotlinx.coroutines.experimental.rx2.awaitLast
 import kotlinx.coroutines.experimental.rx2.rxObservable
 import kotlinx.coroutines.experimental.yield
+import me.ycy.celestine.Const.TAG
 import org.opencv.android.Utils
 import org.opencv.core.Core
 import org.opencv.core.CvType
@@ -61,6 +62,8 @@ class ScreenReaderImpl(width: Int, height: Int): ScreenReader {
         var cnt = 0
 
         for (i in roiList) {
+            Log.v(TAG, "mat0 row/col: " + _mat0.rows() + "/" + _mat0.cols() +
+                    ", roi x,y+w+h: " + i.x + "," + i.y + "+" + i.width + "+" + i.height)
             val s0 = _mat0.submat(i)
             val s1 = _mat1.submat(i)
             val d0 = Mat()

@@ -2,6 +2,8 @@ package me.ycy.celestine
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.support.v4.app.ShareCompat
@@ -29,6 +31,11 @@ class AgentMain(c: AccessibilityService) {
     val DURATION_LONGCLICK = 800L
 
     val _c = c
+    val _cm: ClipboardManager
+
+    init {
+        _cm = _c.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
 
     object Profile {
         lateinit var R_SCREEN: Rect // 屏幕的尺寸
@@ -36,10 +43,13 @@ class AgentMain(c: AccessibilityService) {
         lateinit var R_HEADER: Rect // 上面的一条状态栏，包含“+”、搜索、群名称、返回或“x”等内容
         lateinit var R_FOOTER: Rect // 包含Wechat、Contacts、Discover和Me的底部按钮栏
         lateinit var R_INPUT: Rect // 聊天的输入栏位置
+        lateinit var R_CHAT: Rect // 聊天主界面
     }
 
     val root: () -> AccessibilityNodeInfo? = {
-        _c.rootInActiveWindow
+        var res = _c.rootInActiveWindow
+
+        res
     }
 
     fun performGesture(path: Path, t0: Long, duration: Long) {
@@ -191,6 +201,9 @@ class AgentMain(c: AccessibilityService) {
 
             n++
             if (n > WAIT_TIMEOUT_NUMBER) {
+                // NOTE: sometime, node() will return NULL
+                Log.w(TAG, "get node() = " + node())
+                Log.w(TAG, "curr thread =" + Thread.currentThread())
                 throw RuntimeException("timeout when wait id:" + id)
             }
 
@@ -298,12 +311,13 @@ class AgentMain(c: AccessibilityService) {
         waitStable()
     }
 
-    suspend fun click(x: Float, y: Float,
+    suspend fun click(duration: Long, x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV) {
-        click(DURATION_CLICK, x, y, 800, {
+        click(duration, x, y, 300, {
             if (roiListV.isNotEmpty()) {
                 Log.i(TAG, "wait change: " + roiListV)
+                // TODO: waitChange or waitID
                 waitChange(CLICK_VALID_FRAME, roiListV)
             }
             else {
@@ -318,6 +332,12 @@ class AgentMain(c: AccessibilityService) {
                 Log.i(TAG, "skip stable wait")
             }
         })
+    }
+
+    suspend fun click(x: Float, y: Float,
+                      roiListV: List<Rect>,
+                      roiListS: List<Rect> = roiListV) {
+        click(DURATION_CLICK, x, y, roiListV, roiListS)
     }
 
     suspend fun click(n: AccessibilityNodeInfo,
@@ -389,6 +409,14 @@ class AgentMain(c: AccessibilityService) {
 
         Log.i(TAG1, "R_INPUT: " + Profile.R_INPUT)
 
+        Profile.R_CHAT = withNode(waitId(Const.Loc.Chat.ID_MAIN), {
+            var b = ARect()
+            it.getBoundsInScreen(b)
+            Rect(b.left, b.top, b.width(), b.height())
+        })
+
+        Log.i(TAG1, "R_CHAT: " + Profile.R_CHAT)
+
         doBackToMainScreen()
         Log.d(TAG1, "back to main screen again")
     }
@@ -404,6 +432,7 @@ class AgentMain(c: AccessibilityService) {
 
                 if (text == chat) {
                     Log.i(TAG, "  --> matched")
+                    // TODO, use waitId for validChecking
                     click(n, listOf(Profile.R_HEADER))
 
                     AgentChat(this).run()
@@ -418,14 +447,38 @@ class AgentMain(c: AccessibilityService) {
     suspend fun run() {
         val GROUP_LIST = listOf(
                 "SHLUG技术讨论群🚫💦",
-                "Yù Chāngyuǎn",
+                //"Yù Chāngyuǎn",
+                //"test",
                 "SHLUG闲聊群"
         )
 
-        doProfile()
+        while (true) {
+            try {
+                doProfile()
+                break
+            }
+            catch (e: Exception) {
+                Log.w(TAG, "profile error!")
+                Log.w(TAG, e)
+            }
+        }
 
-        for (chat in GROUP_LIST) {
-            doProcChat(chat)
+        Log.i(TAG, "profile done")
+
+        while (true) {
+            waitApp()
+            doBackToMainScreen()
+
+            try {
+                while (true) {
+                    for (chat in GROUP_LIST) {
+                        doProcChat(chat)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "error: ")
+                Log.w(TAG, e)
+            }
         }
     }
 }
