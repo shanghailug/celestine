@@ -27,7 +27,7 @@ class AgentMain(c: AccessibilityService) {
     val CLICK_VALID_FRAME = 2
     val CLICK_STABLE_FRAME = 4
     val WAIT_TIMEOUT = (1000 * 10) // 1000 * POLL_DELAY = 10sec
-
+    val ROOT_TIMEOUT = 1000 // wait for fixRoot
     val DURATION_CLICK = 50L
     val DURATION_LONGCLICK = 800L
 
@@ -244,7 +244,7 @@ class AgentMain(c: AccessibilityService) {
         }
     }
 
-    suspend fun waitText(t: String): AccessibilityNodeInfo {
+    suspend fun waitText(t: String, to: Int): AccessibilityNodeInfo? {
         var res: AccessibilityNodeInfo? = null
         val t0 = Date().time
 
@@ -259,14 +259,59 @@ class AgentMain(c: AccessibilityService) {
 
             if (res != null) break
 
-            if ((Date().time - t0) > WAIT_TIMEOUT) {
-                throw RuntimeException("timeout wait text: " + t)
+            if (to < 0) {
+                if ((Date().time - t0) > WAIT_TIMEOUT) {
+                    throw RuntimeException("timeout wait text: " + t)
+                }
+            }
+            else {
+                if ((Date().time - t0) > to) {
+                    break
+                }
             }
 
             delay(POLL_DELAY)
         }
 
-        return res!!
+        return res
+    }
+
+    suspend fun waitText(t: String): AccessibilityNodeInfo {
+        return waitText(t, -1)!!
+    }
+
+    suspend fun waitAnyText(ts: List<String>): Pair<AccessibilityNodeInfo, String> {
+        var res: AccessibilityNodeInfo? = null
+        var res1: String = ""
+        val t0 = Date().time
+
+        while (true) {
+            for (t in ts) {
+                var l = _c.rootInActiveWindow?.findAccessibilityNodeInfosByText(t)
+                if (l != null) {
+                    for (i in l) {
+                        if (res == null) {
+                            res = i
+                            res1 = t
+                        } else {
+                            i.recycle()
+                        }
+                    }
+                }
+
+                if (res != null) break
+            }
+
+            if (res != null) break
+
+            if ((Date().time - t0) > WAIT_TIMEOUT) {
+                throw RuntimeException("timeout wait any text: " + ts)
+            }
+
+            delay(POLL_DELAY)
+        }
+
+        return Pair(res!!, res1)
     }
 
     suspend fun click(
@@ -349,6 +394,26 @@ class AgentMain(c: AccessibilityService) {
         var b = ARect()
         n.getBoundsInScreen(b)
         click(b.exactCenterX(), b.exactCenterY(), roiListV, roiListS, timeout)
+    }
+
+    suspend fun fixRoot(n: Int = ROOT_TIMEOUT) {
+        var flag = true
+
+        while (flag) {
+            try {
+                withTimeout(n, {
+                    while (root() == null) {
+                        delay(POLL_DELAY)
+                    }
+
+                    flag = false
+                })
+            } catch (e: TimeoutCancellationException) {
+                _c.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                delay(50)
+                doLaunchApp()
+            }
+        }
     }
 
 

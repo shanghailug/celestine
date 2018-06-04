@@ -1,5 +1,6 @@
 package me.ycy.celestine
 
+import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -8,9 +9,14 @@ import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import io.reactivex.internal.operators.completable.CompletableFromAction
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.channels.NULL_VALUE
+import kotlinx.coroutines.experimental.channels.POLL_FAILED
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.yield
 import org.opencv.core.Rect
+import kotlin.concurrent.fixedRateTimer
 import kotlin.math.roundToInt
 import android.graphics.Rect as ARect
 
@@ -20,7 +26,7 @@ sealed class Message() {
 
     data class Text(override val from: String,
                     override val self: Boolean,
-                    val text: String) : Message()
+                    val text: String?) : Message()
     data class Link(override val from: String,
                     override val self: Boolean,
                     val sum: String, val desc: String): Message()
@@ -40,19 +46,28 @@ class AgentChat(m: AgentMain) {
 
     val _m = m
 
-    fun roiScroll(): List<Rect> {
-        // 检查PageMain的一下区域：
+    fun roiScrollV(): List<Rect> {
         // 1. 左边7.5%
         // 2. 右边7.5%
-        // 3. 最上面，中间位置7.5%的正方形
         var b0 = AgentMain.Profile.R_CHAT
         val w75 = (b0.width * 0.075 + 0.5).roundToInt()
 
         return listOf(
                 Rect(b0.x, b0.y, w75, b0.height),
-                Rect(b0.width - w75, b0.y, w75, b0.height),
-                Rect(b0.width / 2 - w75 / 2, b0.y, w75, w75)
-        )
+                Rect(b0.width - w75, b0.y, w75, b0.height))
+    }
+
+    fun roiScrollH(): List<Rect> {
+        // 3. 最上面，中间位置7.5%的正方形
+        var b0 = AgentMain.Profile.R_CHAT
+        val w75 = (b0.width * 0.075 + 0.5).roundToInt()
+
+        return listOf(Rect(b0.width / 2 - w75 / 2, b0.y, w75, w75))
+    }
+
+    fun roiScroll(): List<Rect> {
+        // 检查PageMain的一下区域：
+        return roiScrollH() + roiScrollV()
     }
 
     suspend fun doScrollToBegin() {
@@ -83,15 +98,54 @@ class AgentChat(m: AgentMain) {
             }
         }
 
-        _m.waitStable(VERI_WAIT_FRAME, roiScroll())
+        val waitJob = launch {
+            _m.waitStable(VERI_WAIT_FRAME, roiScroll())
+        }
 
+        // sometimes, scroll wheel appears, but can not get more history
+        val checkContent = launch {
+            var lastNode: Any? = null
+            var cnt = 0
+            val INTERVAL = 500
+
+            while (true) {
+                val m = _m.waitId(Const.Loc.Chat.ID_MAIN)
+                val n0 = m.getChild(0)
+
+                if ((n0 != null) && (n0 == lastNode)) {
+                    cnt++
+                }
+                else {
+                    cnt = 0
+                }
+
+                lastNode = n0
+
+                delay(INTERVAL)
+
+                if (cnt > (_m.WAIT_TIMEOUT / INTERVAL)) {
+                    break
+                }
+            }
+
+            Log.w(TAG, "chat scroll timeout, just use as first messagae!")
+            // cancel scroll job, an we should still wait page be stable
+
+            // TODO
+            Log.w(TAG, "something wrong with android system or wechat, please reboot")
+            //jobScroll.cancel()
+        }
+
+        waitJob.join()
+
+        checkContent.cancel()
         jobScroll.cancel()
     }
 
     suspend fun rowFindValid(): AccessibilityNodeInfo? {
         var res: AccessibilityNodeInfo? = null
 
-        Log.i(TAG, "curr thread =" + Thread.currentThread())
+        _m.fixRoot()
 
         val nMain = _m.waitId(Const.Loc.Chat.ID_MAIN)
 
@@ -115,29 +169,66 @@ class AgentChat(m: AgentMain) {
     }
 
     // 若当前行位置不好，将其移动到合适的位置
-    suspend fun rowPrepare(row: AccessibilityNodeInfo) {
-        // TODO
-        Log.i(TAG, "prepare: " + row)
+    // true: scrolled, need re-find first vaild row
+    // false: GUI untouched, just return
+    suspend fun rowPrepare(row: AccessibilityNodeInfo): Boolean {
+        Log.i(TAG, "prepare: " + Utils.nodeRect(row))
+
+        val rect = Utils.nodeRect(row)
+        val RC = AgentMain.Profile.R_CHAT
+
+        if (rect.y < RC.height * 0.25 + RC.y) {
+            return false
+        }
+
+        Log.i(TAG, "need scroll up, do align")
+
+        val path = Path()
+        path.moveTo(RC.x + RC.width / 2f, rect.y + 0f)
+        path.rLineTo(0f, 10f - rect.y + RC.y)
+
+        _m.performGesture(path, 0, 100)
+
+        _m.waitStable(VERI_WAIT_FRAME, roiScrollH())
+
+        return true
     }
 
-    suspend fun bubbleLongClickForText(x: Float, y: Float, text: String) {
+    // NOTE: when text not find, but find alt, will return false
+    // this is for some weird text message, which 'NO' copy option
+    suspend fun bubbleLongClickForText(x: Float, y: Float, text: String,
+                                       alt: String = text): Boolean {
+        var res = false;
+
         _m.click(_m.DURATION_LONGCLICK, x, y,
                 // wait text appear
-                2000, { _m.waitText(text) }, {})
+                3000, {
+            _m.waitText(alt)
+
+            if (_m.waitText(text, 1000) != null) {
+                res = true
+            }
+        }, {})
+
+        return res
     }
 
-    suspend fun bubbleLongClickForText(n: AccessibilityNodeInfo, text: String) {
+    suspend fun bubbleLongClickForText(n: AccessibilityNodeInfo, text: String,
+                                       alt: String = text): Boolean {
         var b = ARect()
         n.getBoundsInScreen(b)
-        bubbleLongClickForText(b.exactCenterX(), b.top.toFloat() + 5f, text)
+        return bubbleLongClickForText(b.exactCenterX(), b.top.toFloat() + 5f,
+                text, alt)
     }
 
-    suspend fun  bubleCopyText(n: AccessibilityNodeInfo): String {
+    suspend fun  bubleCopyText(n: AccessibilityNodeInfo): String? {
         val clipboard = _m._cm
-        Log.i(TAG, "clip: " + clipboard)
+        //Log.i(TAG, "clip: " + clipboard)
         clipboard.primaryClip = ClipData.newPlainText("empty", "")
 
-        bubbleLongClickForText(n, Const.Loc.Chat.STR_COPY)
+        if (!bubbleLongClickForText(n, Const.Loc.Chat.STR_COPY, Const.Loc.Chat.STR_MORE)) {
+            return null
+        }
 
         _m.withNode(_m.waitText(Const.Loc.Chat.STR_COPY), {
             it.performAction(AccessibilityNodeInfo.ACTION_CLICK)
@@ -148,7 +239,7 @@ class AgentChat(m: AgentMain) {
             val cnt = clipboard.primaryClip.itemCount
             if (cnt > 0) {
                 text = clipboard.primaryClip.getItemAt(0).text.toString()
-                Log.i(TAG, "clipboard: ${text}")
+                Log.v(TAG, "clipboard: ${text}")
                 break
             }
 
@@ -189,8 +280,6 @@ class AgentChat(m: AgentMain) {
                 self = true
             }
         }
-
-
 
         // try text
         val nl1 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_C_TEXT)
@@ -239,7 +328,8 @@ class AgentChat(m: AgentMain) {
 
         val nl4 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_C_STICKER)
         if (nl4.isNotEmpty()) {
-            val desc = nl4[0].contentDescription.toString()
+            val cd = nl4[0].contentDescription
+            val desc = if (cd == null) "" else cd.toString()
 
             res = Message.Sticker(from, self, desc)
         }
@@ -255,6 +345,10 @@ class AgentChat(m: AgentMain) {
     suspend fun rowDelete(row: AccessibilityNodeInfo) {
         Log.i(TAG, "delete message")
 
+        _m.fixRoot()
+
+        // TODO, wait all menu disappear, necessary?
+
         // NOTE: 头像右面，下面3/4位置，再右偏1/2
         val nl0 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_AVATAR)
         if (nl0.isEmpty()) return
@@ -269,12 +363,17 @@ class AgentChat(m: AgentMain) {
 
             val y = rect.y + rect.height * 3f / 4
 
+            Log.i(TAG, "long click for menu")
             bubbleLongClickForText(x, y, Const.Loc.Chat.STR_DELETE)
         })
 
+        Log.i(TAG, "begin wait delete")
         _m.withNode(_m.waitText(Const.Loc.Chat.STR_DELETE)) {
+            Log.i(TAG, "click delete")
             it.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         }
+
+        _m.fixRoot()
     }
 
     suspend fun doProcMsg() {
@@ -285,11 +384,15 @@ class AgentChat(m: AgentMain) {
 
         while (true) {
             // step 1
-            val row = rowFindValid()
+            Log.v(TAG, "step 1: find valid row")
+            var row = rowFindValid()
 
             // step 2
             if (row != null) {
-                rowPrepare(row)
+                if (rowPrepare(row)) {
+                    row = rowFindValid()
+                    if (row == null) continue
+                }
 
                 val m = rowExtrace(row)
                 Log.i(TAG, "msg: " + m)
@@ -301,18 +404,32 @@ class AgentChat(m: AgentMain) {
             }
 
             // step 3
-            _m.withNode(_m.waitId(Const.Loc.Chat.ID_MAIN), {
-                it.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-            })
-
-            _m.waitStable(VERI_WAIT_FRAME, roiScroll())
-
-            val row1 = rowFindValid()
-            row1?.recycle()
-
-            if (row1 == null) {
-                break
+            Log.i(TAG, "step 3: start")
+            var row1: AccessibilityNodeInfo? = null
+            val job = async {
+                _m.waitStable(5, roiScroll()) // wait 500ms
             }
+
+            while (true) {
+                _m.withNode(_m.waitId(Const.Loc.Chat.ID_MAIN), {
+                    it.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                })
+
+                _m.waitStable(2, roiScroll())
+
+                row1 = rowFindValid()
+                row1?.recycle()
+
+                if (row1 != null) {
+                    job.cancel()
+                    break
+                }
+
+                if (job.isCompleted) break
+            }
+
+            Log.i(TAG, "step 3: end")
+            if (row1 == null) break
         }
     }
 

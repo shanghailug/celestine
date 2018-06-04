@@ -76,9 +76,9 @@ class AgentService: AccessibilityService() {
                 r = r?.parent
             }
 
-            Log.v(TAG, "event ancestor: " + r)
+            //Log.v(TAG, "event ancestor: " + r)
         }
 
-        Log.v(TAG, "event: " + e)
+        //Log.v(TAG, "event: " + e)
     }
 }

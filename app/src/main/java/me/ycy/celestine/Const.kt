@@ -87,6 +87,7 @@ object Const {
             // 相关字符串
             val STR_COPY = "Copy"
             val STR_DELETE = "Delete"
+            val STR_MORE = "More"
         }
     }
 }
