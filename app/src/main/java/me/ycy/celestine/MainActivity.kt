@@ -2,16 +2,15 @@ package me.ycy.celestine
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.PixelFormat
-import android.media.ImageReader
+import android.net.Uri
+import android.os.Build
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import android.widget.Button
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.Rect
-import kotlin.math.absoluteValue
 
 class MainActivity : AppCompatActivity() {
     val TAG = Const.TAG + "/main"
@@ -57,9 +56,48 @@ class MainActivity : AppCompatActivity() {
 
             _helper.start()
         }
+
+        val button = findViewById<Button>(R.id.button)
+        button.setOnClickListener {view ->
+        }
+
+        initPopup()
     }
 
+    val POPUP_CODE = 11224
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data);
+
         _helper.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == POPUP_CODE) {
+            if (Settings.canDrawOverlays(this)) {
+                Log.i(TAG, "onActivityResult granted");
+            }
+        }
+    }
+
+    // ref: https://blog.csdn.net/self_study/article/details/52859790
+    fun initPopup() {
+        var res = true
+
+        if (Build.VERSION.SDK_INT >= 23) {
+            try {
+                val clazz = Settings::class.java
+                val canDrawOverlays = clazz.getDeclaredMethod("canDrawOverlays", Context::class.java)
+                res = canDrawOverlays.invoke(null, this) as Boolean
+                Log.i(TAG, "can draw overlay: " + res)
+            }
+            catch (e: Exception) {
+                Log.w(TAG, e)
+            }
+
+            if (!res) {
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                intent.data = Uri.parse("package:" + packageName)
+                startActivityForResult(intent, POPUP_CODE)
+            }
+        }
     }
 }

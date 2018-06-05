@@ -92,7 +92,8 @@ class AgentChat(m: AgentMain) {
                 for (i in 1 .. (N - 1)) {
                     // perform manual scroll, to avoid some corner case
                     val path = Path()
-                    val x = b.left + b.width() * i / N
+                    // NOTE: to avoid float window
+                    val x = b.left + b.width() * (i and 1) / N
                     path.moveTo(x.toFloat(), (b.top + b.height() * 1 / 3).toFloat())
                     path.rLineTo(0f, b.height().toFloat() / 3f)
 

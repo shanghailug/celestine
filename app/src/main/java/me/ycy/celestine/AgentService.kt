@@ -8,6 +8,7 @@ import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.PopupWindow
 import io.reactivex.Observable
 import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
@@ -16,13 +17,17 @@ import java.util.concurrent.TimeUnit
 class AgentService: AccessibilityService() {
     val TAG = Const.TAG + "/agent"
 
+    lateinit var _w: AgentWindow
+
     companion object {
         var agent: Job? = null
     }
 
     override fun onCreate() {
         Log.i(TAG, "on create")
-        //ses = Executors.newScheduledThreadPool(5)
+
+        _w = AgentWindow(this)
+        _w.init()
     }
 
     override fun onInterrupt() {
@@ -32,6 +37,8 @@ class AgentService: AccessibilityService() {
     override fun onDestroy() {
         //ses?.shutdown()
         Log.i(TAG, "on destroy")
+
+        _w.deinit()
 
         agent?.cancel()
         agent = null
