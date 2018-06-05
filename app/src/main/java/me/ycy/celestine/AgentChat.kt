@@ -71,6 +71,11 @@ class AgentChat(m: AgentMain) {
     }
 
     suspend fun doScrollToBegin() {
+        // if can not find valid row, then already at begin
+        if (rowFindValid() == null) {
+            return
+        }
+
         val jobScroll = launch {
             val N = 5
             val dt = MainActivity.screenReader!!.frameInterval / N
