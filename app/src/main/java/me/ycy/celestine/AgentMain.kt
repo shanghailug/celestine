@@ -175,6 +175,16 @@ class AgentMain(c: AccessibilityService) {
         waitStable(HORI_WAIT_FRAME, listOf(Profile.R_APP))
     }
 
+    suspend fun doLaunchMain() {
+        val intent = Intent(_c, MainActivity::class.java)
+        _c.startActivity(intent)
+
+        while (true) {
+            if (root()?.packageName != Const.App.PACKAGE) break
+            delay(POLL_DELAY)
+        }
+    }
+
     // wait App be target app
     suspend fun waitApp() {
         while (_c.rootInActiveWindow?.packageName != Const.App.PACKAGE) {
@@ -409,7 +419,11 @@ class AgentMain(c: AccessibilityService) {
                     flag = false
                 })
             } catch (e: TimeoutCancellationException) {
-                _c.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                // NOTE: should not use HOME, which will cause
+                // launch intent disabled for 5sec, see
+                // https://stackoverflow.com/q/5600084
+                //_c.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+                doLaunchMain()
                 delay(50)
                 doLaunchApp()
             }
