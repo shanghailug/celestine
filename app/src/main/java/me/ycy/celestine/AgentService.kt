@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 class AgentService: AccessibilityService() {
     val TAG = Const.TAG + "/agent"
 
-    lateinit var _w: AgentWindow
+    var _w: AgentWindow? = null
 
     companion object {
         var agent: Job? = null
@@ -26,8 +26,8 @@ class AgentService: AccessibilityService() {
     override fun onCreate() {
         Log.i(TAG, "on create")
 
-        _w = AgentWindow(this)
-        _w.init()
+        //_w = AgentWindow(this)
+        //_w.init()
     }
 
     override fun onInterrupt() {
@@ -38,7 +38,7 @@ class AgentService: AccessibilityService() {
         //ses?.shutdown()
         Log.i(TAG, "on destroy")
 
-        _w.deinit()
+        _w?.deinit()
 
         agent?.cancel()
         agent = null
