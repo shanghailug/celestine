@@ -493,7 +493,10 @@ class AgentMain(c: AccessibilityService) {
 
         // goto first group
         withNode(waitId(Const.Loc.Main.ID_CHAT_ENTRY), {
-            click("get chat size for profile", it, listOf(Profile.R_HEADER))
+            val r = Utils.nodeRect(it)
+            click("get chat size for profile",
+                    r.x + 10f, r.y + r.height / 2f,
+                    listOf(Profile.R_HEADER))
         })
 
         Log.i(TAG1, "chat page stable")
@@ -530,8 +533,14 @@ class AgentMain(c: AccessibilityService) {
 
                 if (text == chat) {
                     Log.i(TAG, "  --> matched")
+
+                    val rect = Utils.nodeRect(n)
+
                     // TODO, use waitId for validChecking
-                    click("entry chat <" + text + ">", n, listOf(Profile.R_HEADER))
+                    // not click center, to avoid problem
+                    click("entry chat <" + text + ">",
+                            rect.x + 1.0f, rect.y + rect.height / 2.0f,
+                            listOf(Profile.R_HEADER))
 
                     AgentChat(this).run()
                     doBackToMainScreen()
