@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.experimental.*
 import org.opencv.core.Rect
+import java.text.SimpleDateFormat
 import java.util.*
 import android.graphics.Rect as ARect
 
@@ -157,7 +158,7 @@ class AgentMain(c: AccessibilityService) {
         // goto wechat
         withNode(waitActStr(Const.Loc.Main.STR_ACTION_WECHAT, 0), {
             // click, not wait change, only wait stable
-            click(it, listOf(), listOf(Profile.R_APP))
+            click("click wechat icon", it, listOf(), listOf(Profile.R_APP))
         })
 
         Log.i(TAG, "goto main page")
@@ -325,13 +326,17 @@ class AgentMain(c: AccessibilityService) {
     }
 
     suspend fun click(
+            desc: String,
             duration: Long,
             x: Float, y: Float,
             validTimeout: Long,
             waitValid: suspend () -> Unit = {},
             waitStable: suspend () -> Unit = {}
     ) {
-        Log.i(TAG, "click: " + Pair(x, y))
+        val dt = SimpleDateFormat("MM-dd HH:mm:ss.SSS").format(Date())
+
+        val fingerprint = "${Pair(x, y)} - [${dt}] >> ${desc}"
+        Log.i(TAG, "click: ${fingerprint}")
 
         fun doClick() {
             val path = Path()
@@ -345,28 +350,37 @@ class AgentMain(c: AccessibilityService) {
             _c.dispatchGesture(gd, null, null)
         }
 
-        // should start waitValid first
-        // and run waitValid across whole click & retry click period
-        val a0 = async { waitValid() }
-        val a1 = async {
-            while (true) {
-                doClick()
-                delay(validTimeout)
-                Log.i(TAG, "timeout, retry")
+        lateinit var a0: Job
+        lateinit var a1: Job
+        try {
+            // should start waitValid first
+            // and run waitValid across whole click & retry click period
+            a0 = async { waitValid() }
+            a1 = async {
+                while (true) {
+                    doClick()
+                    delay(validTimeout)
+                    Log.i(TAG, "timeout, retry: " + fingerprint)
+                }
             }
+
+            a0.await()
+            a1.cancel()
+
+            waitStable()
         }
-
-        a0.await()
-        a1.cancel()
-
-        waitStable()
+        finally {
+            a1.cancel()
+            a1.cancel()
+        }
     }
 
-    suspend fun click(duration: Long, x: Float, y: Float,
+    suspend fun click(desc: String,
+                      duration: Long, x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV,
                       timeout: Int = WAIT_TIMEOUT) {
-        click(duration, x, y, 300, {
+        click(desc, duration, x, y, 300, {
             if (roiListV.isNotEmpty()) {
                 Log.i(TAG, "wait change: " + roiListV)
                 // TODO: waitChange or waitID
@@ -390,20 +404,22 @@ class AgentMain(c: AccessibilityService) {
         })
     }
 
-    suspend fun click(x: Float, y: Float,
+    suspend fun click(desc: String,
+                      x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV,
                       timeout: Int = WAIT_TIMEOUT) {
-        click(DURATION_CLICK, x, y, roiListV, roiListS, timeout)
+        click(desc, DURATION_CLICK, x, y, roiListV, roiListS, timeout)
     }
 
-    suspend fun click(n: AccessibilityNodeInfo,
+    suspend fun click(desc: String,
+                      n: AccessibilityNodeInfo,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV,
                       timeout: Int = WAIT_TIMEOUT) {
         var b = ARect()
         n.getBoundsInScreen(b)
-        click(b.exactCenterX(), b.exactCenterY(), roiListV, roiListS, timeout)
+        click(desc, b.exactCenterX(), b.exactCenterY(), roiListV, roiListS, timeout)
     }
 
     suspend fun fixRoot(n: Int = ROOT_TIMEOUT) {
@@ -477,7 +493,7 @@ class AgentMain(c: AccessibilityService) {
 
         // goto first group
         withNode(waitId(Const.Loc.Main.ID_CHAT_ENTRY), {
-            click(it, listOf(Profile.R_HEADER))
+            click("get chat size for profile", it, listOf(Profile.R_HEADER))
         })
 
         Log.i(TAG1, "chat page stable")
@@ -515,7 +531,7 @@ class AgentMain(c: AccessibilityService) {
                 if (text == chat) {
                     Log.i(TAG, "  --> matched")
                     // TODO, use waitId for validChecking
-                    click(n, listOf(Profile.R_HEADER))
+                    click("entry chat <" + text + ">", n, listOf(Profile.R_HEADER))
 
                     AgentChat(this).run()
                     doBackToMainScreen()

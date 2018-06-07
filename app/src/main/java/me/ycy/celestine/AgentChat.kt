@@ -206,7 +206,8 @@ class AgentChat(m: AgentMain) {
                                        alt: String = text): Boolean {
         var res = false;
 
-        _m.click(_m.DURATION_LONGCLICK, x, y,
+        _m.click("long click for text <" + text + ">",
+                _m.DURATION_LONGCLICK, x, y,
                 // wait text appear
                 3000, {
             _m.waitText(alt)
