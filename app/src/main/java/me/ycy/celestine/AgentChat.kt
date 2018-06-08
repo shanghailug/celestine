@@ -258,6 +258,36 @@ class AgentChat(m: AgentMain) {
         return text
     }
 
+    // copy text with double click
+    // not stable, some time not back
+    suspend fun bubbleCopyText1(n: AccessibilityNodeInfo): String? {
+        val r = Utils.nodeRect(n)
+        Log.i(TAG, "double click")
+        var text: String? = null
+
+        try {
+            _m.click("double click", {
+                it(10)
+                delay(100)
+                it(10)
+            }, r.x + 10f, r.y + 10f, 2000, {
+                _m.waitId(Const.Loc.Chat.ID_C_TEXT_DETAIL)
+            }, {})
+
+            text = _m.waitId(Const.Loc.Chat.ID_C_TEXT_DETAIL).text?.toString()
+
+            // single click to back, not stable
+            _m.click("text back click", _m.DURATION_CLICK,
+                    r.x.toFloat(), r.y.toFloat(), 1000,
+                    {}, {})
+        }
+        catch (e: Exception) {
+            Log.w(TAG, "fail to get text by double click")
+        }
+
+        return text
+    }
+
     // 提取行的信息
     suspend fun rowExtrace(row: AccessibilityNodeInfo): Message {
         var res: Message? = null

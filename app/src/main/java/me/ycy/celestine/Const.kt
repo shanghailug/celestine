@@ -68,6 +68,8 @@ object Const {
 
             // 文本消息
             val ID_C_TEXT = App.Id("jz")
+            // 双击文本消息，全屏后的TextView ID
+            val ID_C_TEXT_DETAIL = App.Id("afp")
 
             // 链接, NOTE: has child with id ad7
             val ID_C_LINK = App.Id("ad7")
