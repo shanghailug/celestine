@@ -19,6 +19,7 @@ import android.graphics.Rect as ARect
 // 1. WeChat的主界面，在子界面里面也能访问到。感觉像子界面覆盖在主界面上。
 //    因此，不能通过是否有主界面元素判断是否是主界面，而是通过是否无子界面元素判断
 
+typealias ClickFunc = suspend ((Long) -> Unit) -> Unit
 
 class AgentMain(c: AccessibilityService) {
     val TAG = Const.TAG + "/agent/m"
@@ -29,8 +30,8 @@ class AgentMain(c: AccessibilityService) {
     val CLICK_STABLE_FRAME = 4
     val WAIT_TIMEOUT = (1000 * 10) // 1000 * POLL_DELAY = 10sec
     val ROOT_TIMEOUT = 1000 // wait for fixRoot
-    val DURATION_CLICK = 50L
-    val DURATION_LONGCLICK = 800L
+    val DURATION_CLICK: ClickFunc = {f -> f(50L) }
+    val DURATION_LONGCLICK: ClickFunc = {f -> f(800L) }
 
     val _c = c
     val _cm: ClipboardManager
@@ -333,7 +334,7 @@ class AgentMain(c: AccessibilityService) {
 
     suspend fun click(
             desc: String,
-            duration: Long,
+            clickFunc: ClickFunc,
             x: Float, y: Float,
             validTimeout: Long,
             waitValid: suspend () -> Unit = {},
@@ -344,13 +345,13 @@ class AgentMain(c: AccessibilityService) {
         val fingerprint = "${Pair(x, y)} - [${dt}] >> ${desc}"
         Log.i(TAG, "click: ${fingerprint}")
 
-        fun doClick() {
+        val doClick: (Long) -> Unit = {n: Long ->
             val path = Path()
             path.moveTo(x, y)
 
             val gd = GestureDescription.Builder()
                     .addStroke(GestureDescription.StrokeDescription(
-                            path, 0, duration))
+                            path, 0, n))
                     .build()
 
             _c.dispatchGesture(gd, null, null)
@@ -364,7 +365,7 @@ class AgentMain(c: AccessibilityService) {
             a0 = async { waitValid() }
             a1 = async {
                 while (true) {
-                    doClick()
+                    clickFunc(doClick)
                     delay(validTimeout)
                     Log.i(TAG, "timeout, retry: " + fingerprint)
                 }
@@ -382,11 +383,11 @@ class AgentMain(c: AccessibilityService) {
     }
 
     suspend fun click(desc: String,
-                      duration: Long, x: Float, y: Float,
+                      clickFunc: ClickFunc, x: Float, y: Float,
                       roiListV: List<Rect>,
                       roiListS: List<Rect> = roiListV,
                       timeout: Int = WAIT_TIMEOUT) {
-        click(desc, duration, x, y, 300, {
+        click(desc, clickFunc, x, y, 300, {
             if (roiListV.isNotEmpty()) {
                 Log.i(TAG, "wait change: " + roiListV)
                 // TODO: waitChange or waitID
