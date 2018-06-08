@@ -132,6 +132,8 @@ class AgentMain(c: AccessibilityService) {
         waitApp()
 
         while (true) {
+            fixRoot()
+
             var hasBack = false
             val res = _c.rootInActiveWindow?.
                     findAccessibilityNodeInfosByText(CONTENT_BACK)
@@ -186,9 +188,13 @@ class AgentMain(c: AccessibilityService) {
         }
     }
 
+    fun appFocused(): Boolean {
+        return _c.rootInActiveWindow?.packageName == Const.App.PACKAGE
+    }
+
     // wait App be target app
     suspend fun waitApp() {
-        while (_c.rootInActiveWindow?.packageName != Const.App.PACKAGE) {
+        while (!appFocused()) {
             delay(POLL_DELAY)
         }
     }
@@ -572,7 +578,25 @@ class AgentMain(c: AccessibilityService) {
 
         Log.i(TAG, "profile done")
 
+        // check root for debug
+        launch {
+            val TAG1 = TAG + "/null"
+            while (true) {
+                try {
+                    if (root() == null) {
+                        Log.w(TAG1, "root is NULL")
+                    }
+
+                    // every 5 sec
+                    delay(5000)
+                }
+                catch (e: Exception) {
+                }
+            }
+        }
+
         while (true) {
+            if (!appFocused()) doLaunchMain()
             waitApp()
             doBackToMainScreen()
 
