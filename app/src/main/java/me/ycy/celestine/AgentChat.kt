@@ -392,10 +392,9 @@ class AgentChat(m: AgentMain) {
         // TODO, wait all menu disappear, necessary?
 
         // NOTE: 头像右面，下面3/4位置，再右偏1/2
-        val nl0 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_AVATAR)
-        if (nl0.isEmpty()) return
+        val nl0 = _m.waitId(Const.Loc.Chat.ID_AVATAR, { row })
 
-        _m.withNode(nl0[0], {
+        _m.withNode(nl0, {
             val rect = Utils.nodeRect(it)
 
             val x = if (rect.x < AgentMain.Profile.R_SCREEN.width / 2)
