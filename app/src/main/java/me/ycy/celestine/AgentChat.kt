@@ -43,6 +43,7 @@ class AgentChat(m: AgentMain) {
     val TAG = Const.TAG + "/agent/c"
 
     val VERI_WAIT_FRAME = 4
+    val VERI_SCROLL_FRAME = 8
 
     val _m = m
 
@@ -105,7 +106,7 @@ class AgentChat(m: AgentMain) {
         }
 
         val waitJob = launch {
-            _m.waitStable(VERI_WAIT_FRAME, roiScroll())
+            _m.waitStable(VERI_SCROLL_FRAME, roiScroll())
         }
 
         // sometimes, scroll wheel appears, but can not get more history
