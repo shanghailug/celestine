@@ -55,6 +55,10 @@ class AgentMain(c: AccessibilityService) {
         res
     }
 
+    fun performAction(a: Int) {
+        _c.performGlobalAction(a)
+    }
+
     fun performGesture(path: Path, t0: Long, duration: Long) {
         val gd = GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(

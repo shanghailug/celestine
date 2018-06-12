@@ -235,6 +235,10 @@ class AgentChat(m: AgentMain) {
         clipboard.primaryClip = ClipData.newPlainText("empty", "")
 
         if (!bubbleLongClickForText(n, Const.Loc.Chat.STR_COPY, Const.Loc.Chat.STR_MORE)) {
+            // NOTE: should click back if not find 'Delete', to make context menu disappear
+            // NOTE: this not stable
+            _m.performAction(AccessibilityService.GLOBAL_ACTION_BACK)
+
             return null
         }
 
