@@ -358,10 +358,13 @@ class AgentChat(m: AgentMain) {
         if (nl2.isNotEmpty()) {
             val nl3 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_C_LINK_SUM)
             if (nl3.isNotEmpty()) {
-                val sum = nl3[0].text.toString()
+                var sum = nl3[0].text?.toString()
+                if (sum == null) sum = ""
 
                 val nl4 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_C_LINK_DESC)
-                val desc = if (nl4.isEmpty()) "" else nl4[0].text.toString()
+                var desc = if (nl4.isEmpty()) "" else nl4[0].text?.toString()
+                if (desc == null) desc = ""
+
                 recycle(nl4)
 
                 res = Message.Link(from, self, sum, desc)
@@ -389,8 +392,8 @@ class AgentChat(m: AgentMain) {
 
         val nl4 = row.findAccessibilityNodeInfosByViewId(Const.Loc.Chat.ID_C_STICKER)
         if (nl4.isNotEmpty()) {
-            val cd = nl4[0].contentDescription
-            val desc = if (cd == null) "" else cd.toString()
+            var desc = nl4[0].contentDescription?.toString()
+            if (desc == null) desc = ""
 
             res = Message.Sticker(from, self, desc)
         }
